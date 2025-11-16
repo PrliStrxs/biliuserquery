@@ -1,8 +1,112 @@
-# draw_user_card.py
 from PIL import Image, ImageDraw, ImageFont
 import json
 import os
 import textwrap
+import platform
+
+def get_font_path():
+    """
+    获取可用的字体路径，优先使用系统中文字体
+    兼容Windows和Linux系统
+    """
+    # 首先检查项目目录中的字体
+    project_fonts = [
+        "simhei.ttf",
+        "./simhei.ttf",
+        "fonts/simhei.ttf",
+        "./fonts/simhei.ttf",
+        "msyh.ttc",  # 微软雅黑
+        "./msyh.ttc",
+        "fonts/msyh.ttc",
+        "./fonts/msyh.ttc"
+    ]
+    
+    for font_path in project_fonts:
+        if os.path.exists(font_path):
+            print(f"使用项目字体: {font_path}")
+            return font_path
+    
+    # 根据系统类型查找系统字体
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows 系统字体路径
+        windows_fonts = [
+            "C:/Windows/Fonts/simhei.ttf",  # 黑体
+            "C:/Windows/Fonts/msyh.ttc",    # 微软雅黑
+            "C:/Windows/Fonts/msyh.ttf",    # 微软雅黑
+            "C:/Windows/Fonts/simsun.ttc",  # 宋体
+            "C:/Windows/Fonts/simkai.ttf",  # 楷体
+        ]
+        for font_path in windows_fonts:
+            if os.path.exists(font_path):
+                print(f"使用Windows系统字体: {font_path}")
+                return font_path
+    
+    elif system == "Linux":
+        # Linux 系统字体路径
+        linux_fonts = [
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",  # 文鼎明体
+            "/usr/share/fonts/truetype/arphic/ukai.ttc",   # 文鼎楷体
+        ]
+        for font_path in linux_fonts:
+            if os.path.exists(font_path):
+                print(f"使用Linux系统字体: {font_path}")
+                return font_path
+    
+    elif system == "Darwin":  # macOS
+        mac_fonts = [
+            "/System/Library/Fonts/PingFang.ttc",
+            "/System/Library/Fonts/STHeiti Light.ttc",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+            "/System/Library/Fonts/AppleGothic.ttf",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+        for font_path in mac_fonts:
+            if os.path.exists(font_path):
+                print(f"使用macOS系统字体: {font_path}")
+                return font_path
+    
+    print("警告: 未找到中文字体，将使用默认字体（可能不支持中文）")
+    return None
+
+def safe_text_draw(draw, position, text, font, fill, anchor=None):
+    """
+    安全的文本绘制函数，处理编码问题
+    """
+    try:
+        if anchor:
+            draw.text(position, text, fill=fill, font=font, anchor=anchor)
+        else:
+            draw.text(position, text, fill=fill, font=font)
+        return True
+    except UnicodeEncodeError:
+        # 如果遇到编码问题，尝试使用不同的编码
+        try:
+            # 尝试UTF-8编码
+            text_encoded = text.encode('utf-8').decode('utf-8')
+            if anchor:
+                draw.text(position, text_encoded, fill=fill, font=font, anchor=anchor)
+            else:
+                draw.text(position, text_encoded, fill=fill, font=font)
+            return True
+        except:
+            # 如果还是失败，使用替换字符
+            text_safe = text.encode('utf-8', 'replace').decode('utf-8')
+            if anchor:
+                draw.text(position, text_safe, fill=fill, font=font, anchor=anchor)
+            else:
+                draw.text(position, text_safe, fill=fill, font=font)
+            return True
+    except Exception as e:
+        print(f"绘制文本失败: {e}")
+        return False
 
 def draw_user_card(mid):
     """
@@ -19,36 +123,48 @@ def draw_user_card(mid):
         user_data = json.load(f)
     
     # 创建画布 (宽800px，高根据内容自适应)
-
     width = 800
-
     height = 1000  # 增加高度以适应更多内容
     
     # 创建白色背景
     img = Image.new('RGB', (width, height), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
     
+    # 获取字体路径
+    font_path = get_font_path()
+    
     # 尝试加载字体（使用系统字体作为后备）
     try:
-        title_font = ImageFont.truetype("simhei.ttf", 28)  # 标题字体
-        name_font = ImageFont.truetype("simhei.ttf", 24)   # 名字字体
-        normal_font = ImageFont.truetype("simhei.ttf", 18) # 正文字体
-        stat_font = ImageFont.truetype("simhei.ttf", 16)   # 统计数据字体，稍微调小
-        small_font = ImageFont.truetype("simhei.ttf", 16)  # 小字体
-    except:
-        # 如果找不到字体，使用默认字体
+        if font_path:
+            title_font = ImageFont.truetype(font_path, 28)  # 标题字体
+            name_font = ImageFont.truetype(font_path, 24)   # 名字字体
+            normal_font = ImageFont.truetype(font_path, 18) # 正文字体
+            stat_font = ImageFont.truetype(font_path, 16)   # 统计数据字体，稍微调小
+            small_font = ImageFont.truetype(font_path, 16)  # 小字体
+        else:
+            # 如果找不到字体，使用默认字体
+            title_font = ImageFont.load_default()
+            name_font = ImageFont.load_default()
+            normal_font = ImageFont.load_default()
+            stat_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+            print("使用默认字体，中文可能显示为方块")
+    except Exception as e:
+        print(f"加载字体失败: {e}")
+        # 使用默认字体
         title_font = ImageFont.load_default()
         name_font = ImageFont.load_default()
         normal_font = ImageFont.load_default()
         stat_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
+        print("使用默认字体，中文可能显示为方块")
     
     # 绘制顶部背景（B站主题色 #FB7299）
     draw.rectangle([(0, 0), (width, 120)], fill=(251, 114, 153))
     
     # 绘制标题
-    draw.text((width//2, 30), "B站用户信息卡片", fill=(255, 255, 255), 
-              font=title_font, anchor="mm")
+    safe_text_draw(draw, (width//2, 30), "B站用户信息卡片", fill=(255, 255, 255), 
+                  font=title_font, anchor="mm")
     
     # 加载并绘制头像
     avatar_path = None
@@ -89,27 +205,27 @@ def draw_user_card(mid):
     
     name_y = 160
     for i, line in enumerate(name_lines):
-        draw.text((150, name_y + i*25), line, fill=(0, 0, 0), font=name_font)
+        safe_text_draw(draw, (150, name_y + i*25), line, fill=(0, 0, 0), font=name_font)
     
-    draw.text((150, name_y + len(name_lines)*25), f"UID: {mid}", fill=(100, 100, 100), font=normal_font)
+    safe_text_draw(draw, (150, name_y + len(name_lines)*25), f"UID: {mid}", fill=(100, 100, 100), font=normal_font)
     
     # 绘制等级和会员信息（分两行显示）
     level = user_data.get('level', 0)
     vip_text = user_data.get('vip_text', '')
     
     level_text = f"等级: Lv.{level}"
-    draw.text((150, name_y + len(name_lines)*25 + 30), level_text, fill=(251, 114, 153), font=normal_font)
+    safe_text_draw(draw, (150, name_y + len(name_lines)*25 + 30), level_text, fill=(251, 114, 153), font=normal_font)
     
     if vip_text:
         vip_text_display = f"会员: {vip_text}"
-        draw.text((150, name_y + len(name_lines)*25 + 55), vip_text_display, fill=(251, 114, 153), font=normal_font)
+        safe_text_draw(draw, (150, name_y + len(name_lines)*25 + 55), vip_text_display, fill=(251, 114, 153), font=normal_font)
     
     # 绘制基本信息区域
     y_offset = name_y + len(name_lines)*25 + 85
     
     # 性别
     sex = user_data.get('sex', '未知')
-    draw.text((50, y_offset), f"性别: {sex}", fill=(0, 0, 0), font=normal_font)
+    safe_text_draw(draw, (50, y_offset), f"性别: {sex}", fill=(0, 0, 0), font=normal_font)
     
     # 签名（处理长签名）
     sign = user_data.get('sign', '')
@@ -125,7 +241,7 @@ def draw_user_card(mid):
     sign_lines = sign_lines[:3]  # 最多显示3行
     
     for i, line in enumerate(sign_lines):
-        draw.text((50, y_offset + 30 + i*25), line, fill=(100, 100, 100), font=normal_font)
+        safe_text_draw(draw, (50, y_offset + 30 + i*25), line, fill=(100, 100, 100), font=normal_font)
     
     # 更新y_offset位置
     y_offset += 30 + len(sign_lines)*25 + 10
@@ -139,7 +255,7 @@ def draw_user_card(mid):
         title_lines = title_lines[:2]  # 最多显示2行
         
         for i, line in enumerate(title_lines):
-            draw.text((50, y_offset + i*25), line, fill=(255, 215, 0), font=normal_font)
+            safe_text_draw(draw, (50, y_offset + i*25), line, fill=(255, 215, 0), font=normal_font)
         
         y_offset += len(title_lines)*25
     
@@ -151,14 +267,14 @@ def draw_user_card(mid):
         attestation_lines = attestation_lines[:2]  # 最多显示2行
         
         for i, line in enumerate(attestation_lines):
-            draw.text((50, y_offset + i*25), line, fill=(100, 150, 255), font=normal_font)
+            safe_text_draw(draw, (50, y_offset + i*25), line, fill=(100, 150, 255), font=normal_font)
         
         y_offset += len(attestation_lines)*25
     
     # 绘制勋章信息
     nameplate_name = user_data.get('nameplate_name', '')
     if nameplate_name:
-        draw.text((50, y_offset), f"勋章: {nameplate_name}", fill=(0, 0, 0), font=normal_font)
+        safe_text_draw(draw, (50, y_offset), f"勋章: {nameplate_name}", fill=(0, 0, 0), font=normal_font)
         y_offset += 25
     
     # 现在绘制头像框 - 在所有文字绘制完成后
@@ -197,9 +313,7 @@ def draw_user_card(mid):
             print(f"加载头像框失败: {e}")
     
     # 加载并绘制勋章图片
-
     nameplate_path = None
-
     for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
         if os.path.exists(f"img/{mid}_nameplate{ext}"):
             nameplate_path = f"img/{mid}_nameplate{ext}"
@@ -222,14 +336,12 @@ def draw_user_card(mid):
         except Exception as e:
             print(f"加载勋章图片失败: {e}")
 
-
     # 加载并添加头像到列表
     avatar_path = None
     for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
         if os.path.exists(f"img/{mid}_face{ext}"):
             avatar_path = f"img/{mid}_face{ext}"
             break
-
 
     if avatar_path:
         try:
@@ -243,7 +355,6 @@ def draw_user_card(mid):
             images_to_show.append(('avatar', avatar))
         except Exception as e:
             print(f"加载头像失败: {e}")
-
 
     # 加载并添加头像框到列表
     pendant_path = None
@@ -265,7 +376,6 @@ def draw_user_card(mid):
         except Exception as e:
             print(f"加载头像框失败: {e}")
 
-
     # 按顺序绘制图片（勋章、头像、头像框）- 每行显示最多3个图片
     images_per_row = 3
     for i in range(0, len(images_to_show), images_per_row):
@@ -276,7 +386,6 @@ def draw_user_card(mid):
         total_width = len(row_images) * 100 + (len(row_images) - 1) * 20  # 每张图片100px，间距20px
         start_x = (width - total_width) // 2
         
-
         for j, (img_type, img_data) in enumerate(row_images):
             x_pos = start_x + j * 120  # 每张图片加上间距
         
@@ -290,8 +399,6 @@ def draw_user_card(mid):
             # 重新创建draw对象
             draw = ImageDraw.Draw(img)
 
-
-
     # 增加y_offset以容纳所有图片行
     rows_needed = (len(images_to_show) + images_per_row - 1) // images_per_row  # 向上取整
     y_offset += rows_needed * 110
@@ -299,10 +406,11 @@ def draw_user_card(mid):
     # 如果有图片被加载，添加标题
     if images_to_show:
         # 绘制图片标题
-        draw.text((width//2, y_offset + 10), " ", fill=(0, 0, 0), 
-                  font=normal_font, anchor="mm")
+        safe_text_draw(draw, (width//2, y_offset + 10), " ", fill=(0, 0, 0), 
+                      font=normal_font, anchor="mm")
         y_offset += 30
-        # 绘制统计数据区域（使用卡片式布局）
+    
+    # 绘制统计数据区域（使用卡片式布局）
     stat_y = y_offset + 30  # 增加间距以避免重叠
     # 统计数据背景 - 扩大边框
     stat_bg_color = (245, 245, 245)
@@ -310,8 +418,8 @@ def draw_user_card(mid):
                   fill=stat_bg_color, outline=(220, 220, 220), width=2)
     
     # 统计数据标题
-    draw.text((width//2, stat_y+15), "账号数据", fill=(0, 0, 0), 
-              font=normal_font, anchor="mm")
+    safe_text_draw(draw, (width//2, stat_y+15), "账号数据", fill=(0, 0, 0), 
+                  font=normal_font, anchor="mm")
     
     # 统计数据（4个卡片）- 扩大卡片尺寸
     card_width = (width - 100) // 2  # 增加宽度
@@ -344,36 +452,38 @@ def draw_user_card(mid):
         current_font_size = 16
         while current_font_size >= 10:
             try:
-                current_font = ImageFont.truetype("simhei.ttf", current_font_size)
+                if font_path:
+                    current_font = ImageFont.truetype(font_path, current_font_size)
+                else:
+                    current_font = ImageFont.load_default()
+                    
+                value_bbox = draw.textbbox((0, 0), value, font=current_font)
+                value_width = value_bbox[2] - value_bbox[0]
+                
+                if value_width <= card_width - 20:  # 留出边距
+                    break
+                current_font_size -= 1
             except:
                 current_font = ImageFont.load_default()
-                
-            value_bbox = draw.textbbox((0, 0), value, font=current_font)
-            value_width = value_bbox[2] - value_bbox[0]
-            
-            if value_width <= card_width - 20:  # 留出边距
                 break
-            current_font_size -= 1
         
         # 计算位置
         value_bbox = draw.textbbox((0, 0), value, font=current_font)
         value_width = value_bbox[2] - value_bbox[0]
         value_x = x + (card_width - value_width) // 2
         
-        draw.text((value_x, y+10), value, fill=stat["color"], font=current_font)
+        safe_text_draw(draw, (value_x, y+10), value, fill=stat["color"], font=current_font)
         
         # 绘制标签
         label_bbox = draw.textbbox((0, 0), stat["label"], font=normal_font)
         label_width = label_bbox[2] - label_bbox[0]
         label_x = x + (card_width - label_width) // 2
         
-        draw.text((label_x, y+30), stat["label"], fill=(100, 100, 100), font=normal_font)
+        safe_text_draw(draw, (label_x, y+30), stat["label"], fill=(100, 100, 100), font=normal_font)
     
     # 绘制底部信息
-
-    draw.text((width//2, height-30), "来源 by 兆孽的B站用户查询", 
-
-              fill=(150, 150, 150), font=small_font, anchor="mm")
+    safe_text_draw(draw, (width//2, height-30), "来源 by 兆孽的B站用户查询", 
+                  fill=(150, 150, 150), font=small_font, anchor="mm")
     
     # 确保输出目录存在
     os.makedirs("output", exist_ok=True)

@@ -1,11 +1,33 @@
 # common.py
 import os
-from collections import deque
+import json
 import threading
+from collections import deque
 
-# 全局查询历史记录，最多保存3个用户
-query_history = deque(maxlen=3)
+# 查询历史记录文件
+HISTORY_FILE = "query_history.json"
 history_lock = threading.Lock()
+
+def load_query_history():
+    """从文件加载查询历史记录"""
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return deque(data, maxlen=3)
+        else:
+            return deque(maxlen=3)
+    except Exception as e:
+        print(f"加载查询历史失败: {e}")
+        return deque(maxlen=3)
+
+def save_query_history(history):
+    """保存查询历史记录到文件"""
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(list(history), f, ensure_ascii=False)
+    except Exception as e:
+        print(f"保存查询历史失败: {e}")
 
 def delete_user_data(mid):
     """
@@ -61,6 +83,12 @@ def manage_query_history(mid):
     管理查询历史记录，如果超过3个用户则删除最早的
     """
     with history_lock:
+        # 从文件加载历史记录
+        query_history = load_query_history()
+        
+        print(f"当前查询历史: {list(query_history)}")
+        print(f"新查询用户: {mid}")
+        
         # 检查是否是第四个查询，如果是则删除第一个查询的用户数据
         if len(query_history) >= 3:
             # 删除最早的用户数据
@@ -69,6 +97,13 @@ def manage_query_history(mid):
             delete_user_data(oldest_mid)
             query_history.popleft()
         
+        # 如果用户已经在历史记录中，先移除再添加到末尾（更新顺序）
+        if mid in query_history:
+            query_history.remove(mid)
+        
         # 添加到查询历史记录
         query_history.append(mid)
-        print(f"当前查询历史: {list(query_history)}")
+        print(f"更新后查询历史: {list(query_history)}")
+        
+        # 保存到文件
+        save_query_history(query_history)
