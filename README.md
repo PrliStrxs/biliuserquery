@@ -1,6 +1,6 @@
 # B站用户数据查询程序
 
-一个用于查询B站用户数据的Python程序，通过B站API获取用户信息、关注/粉丝数量、播放量和点赞数等数据，并支持下载用户头像、头像框和勋章图片。
+一个用于查询B站用户数据的Python程序，通过B站API获取用户信息、关注/粉丝数量、播放量和点赞数等数据，并支持下载用户头像、头像框和勋章图片，同时生成可视化信息卡片。
 
 ## 功能特性
 
@@ -13,6 +13,9 @@
 - 支持批量查询多个用户
 - 提供Web API接口，支持HTTP请求查询
 - 生成用户信息可视化卡片图片
+- 自动管理查询历史记录，保留最新3个用户的查询结果
+- 支持命令行交互和Web API两种使用方式
+- 自动化数据文件管理，历史数据自动清理
 
 ## 环境要求
 
@@ -65,8 +68,8 @@ python app.py
 ### API接口
 
 - `GET /` - 获取API服务信息和使用说明
-- `GET /<mid>` - 查询指定MID的用户数据并返回JSON格式结果
-- `GET /card/<mid>` - 获取指定MID的用户信息卡片图片
+- `GET /<mid>` - 查询指定MID的用户数据并返回JSON格式结果（如果本地有数据则直接返回，否则先查询再返回）
+- `GET /card/<mid>` - 获取指定MID的用户信息卡片图片（如果本地有图片则直接返回，否则先生成再返回）
 
 ### API示例
 
@@ -114,6 +117,7 @@ python app.py
 | follower | 粉丝数量 |
 | view | 播放量 |
 | likes | 点赞总数 |
+| card_image_url | 用户信息卡片图片的API访问地址 |
 
 ## API接口
 
@@ -121,12 +125,23 @@ python app.py
 - `https://api.bilibili.com/x/space/acc/info` - 获取用户基本信息
 - `https://api.bilibili.com/x/relation/stat` - 获取关注和粉丝数量
 - `https://api.bilibili.com/x/space/upstat` - 获取播放和点赞数量
-
 ## 错误处理
 
 - 网络请求失败时会自动重试（最多3次）
 - API返回错误时会显示错误信息
 - Cookie无效时可能导致部分数据无法获取
+
+## 数据管理
+
+程序会自动管理历史查询数据，当查询历史超过3个用户时，会自动删除最早查询的用户数据文件（包括数据文件、图片文件和生成的卡片）。
+
+## 绘图功能
+
+程序使用PIL(Pillow)库绘制用户信息卡片，包含：
+- 用户头像、昵称、等级、认证信息
+- 关注数、粉丝数、播放量、点赞数的可视化展示
+- 背景、边框等装饰元素
+- 响应式布局设计
 
 ## 注意事项
 
@@ -134,16 +149,19 @@ python app.py
 2. 查询频率不宜过快，避免被B站限制访问
 3. Cookie过期时需要重新获取并更新`cookie.txt`文件
 4. 本程序仅供学习交流使用，请遵守B站相关服务条款
+5. 程序会自动管理查询历史，保留最新的3个用户数据
+6. Web API服务默认运行在12561端口，可通过修改代码更改端口号
 
 ## 目录结构
 
 ```
 biliuserquery/
 ├── app.py                 # 主程序入口，包含命令行和Web API启动
-├── draw_user_card.py      # 用户信息卡片生成器
+├── draw_user_card.py      # 用户信息卡片生成器（兼容旧版调用）
 ├── web_api.py             # Web API服务实现
-├── common.py              # 公共功能模块（查询历史、数据删除等）
+├── common.py              # 公共功能模块（查询历史管理、数据删除等）
 ├── cookie.txt             # 存放B站Cookie信息
+├── query_history.json     # 查询历史记录
 ├── api/
 │   ├── __init__.py
 │   ├── user_info.py       # 用户信息API
@@ -151,5 +169,15 @@ biliuserquery/
 │   └── upstat.py          # UP主统计数据API
 ├── data/                  # 存放查询结果数据
 ├── img/                   # 存放下载的用户图片
-└── output/                # 存放生成的用户信息卡片
-```
+├── output/                # 存放生成的用户信息卡片
+├── drawing/               # 绘图模块
+│   ├── __init__.py
+│   ├── main.py            # 绘图主函数
+│   ├── background_drawer.py # 背景绘制
+│   ├── user_info_drawer.py  # 用户信息绘制
+│   ├── image_drawer.py      # 图片绘制
+│   ├── stats_drawer.py      # 统计数据绘制
+│   ├── font_manager.py      # 字体管理
+│   └── download_fonts.py    # 字体下载
+└── __pycache__/           # Python缓存文件
+```
