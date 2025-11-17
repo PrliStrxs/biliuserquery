@@ -11,7 +11,12 @@ import threading
 from api.user_info import get_user_info_with_retry
 from api.relation_stat import get_relation_stat_with_retry
 from api.upstat import get_upstat_with_retry
-from draw_user_card import draw_user_card
+# 修改绘图导入
+try:
+    from drawing import draw_user_card
+except ImportError:
+    # 回退到旧版本
+    from draw_user_card import draw_user_card
 from common import manage_query_history, delete_user_data  # 导入共享功能
 
 app = Flask(__name__)
